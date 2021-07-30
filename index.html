@@ -1,0 +1,124 @@
+<html>
+<head>
+<title>game</title>
+</head>
+
+<body bgcolor="black">
+<script>
+const WIDTH = 400;
+const HEIGHT = 240;
+const SCALE = 2;
+var canvas = document.createElement("canvas");
+canvas.width = WIDTH;
+canvas.height = HEIGHT;
+canvas.style.imageRendering = "crisp-edges";
+canvas.style.imageRendering = "pixelated";
+canvas.style.width = WIDTH * SCALE + "px";
+canvas.style.height = HEIGHT * SCALE + "px";
+canvas.style.borderWidth = "1px";
+canvas.style.borderStyle = "solid";
+canvas.style.borderColor = "gray";
+document.body.appendChild(canvas);
+var ctx = canvas.getContext("2d");
+
+var buffer = ctx.getImageData(0,0,WIDTH,HEIGHT);
+const buffer32 = new Int32Array(buffer.data.buffer);
+buffer.data[0] = 255;
+buffer.data[1] = 255;
+buffer.data[2] = 255;
+buffer.data[3] = 255;
+var w = buffer32[0];
+buffer.data[0] = 0;
+buffer.data[1] = 0;
+buffer.data[2] = 0;
+buffer.data[3] = 255;
+var b = buffer32[0];
+
+function refresh() {
+    ctx.putImageData(buffer,0,0);
+    window.requestAnimationFrame(refresh);
+}
+refresh();
+
+function put(point,val) {
+    if(point[0]<0||point[0]>=WIDTH) {
+        return;
+    }
+    if(point[1]<0||point[1]>=HEIGHT) {
+        return;
+    }
+    buffer32[point[1]*WIDTH+point[0]] = val ? w : b;
+}
+function clear() {
+    for( var i =0; i<WIDTH*HEIGHT; i++ ) {
+        buffer32[i] = b;
+    }
+}
+var p = [WIDTH/2,0];
+var v = [0,0];
+var g = [0,0.01];
+var a = [0,0];
+var angle = 0;
+var angleDelta = 0;
+var booster = false;
+window.onkeydown = function(evt) {
+    switch( evt.code ) {
+        case "ArrowUp":
+            a = [0,-0.03];
+            booster = true;
+            break;
+        case "ArrowLeft":
+            angleDelta = 0.1;
+            break;
+        case "ArrowRight":
+            angleDelta = -0.1;
+            break;
+    }
+};
+window.onkeyup = function(evt) {
+    switch( evt.code ) {
+        case "ArrowUp":
+            a = [0,0];
+            booster = false;
+            break;
+        case "ArrowLeft":
+            angleDelta = 0;
+            break;
+        case "ArrowRight":
+            angleDelta = 0;
+            break;
+    }
+};
+const sin = Math.sin;
+const cos = Math.cos;
+function rotate(angle,point) {
+    return [
+        point[0] * sin(angle) + point[1] * cos(angle),
+        point[0] * cos(angle) + point[1] * -sin(angle)
+    ];
+}
+function translate(vector,point) {
+    return [vector[0]+point[0],vector[1]+point[1]];
+}
+function round(point) {
+    return [Math.round(point[0]), Math.round(point[1])];
+}
+function draw() {
+    var a2 = rotate(angle,a);
+    p = [p[0]+v[0],p[1]+v[1]];
+    v = [v[0]+g[0]+a2[0],v[1]+g[1]+a2[1]];
+    angle += angleDelta;
+    
+    clear();
+    put(round(translate(p,rotate(angle,[0,-3]))),1);
+    put(round(translate(p,rotate(angle,[-2,+3]))),1);
+    put(round(translate(p,rotate(angle,[+2,+3]))),1);
+    if( booster ) {
+        put(round(translate(p,rotate(angle,[-1,+5]))),1);
+        put(round(translate(p,rotate(angle,[+1,+5]))),1);
+    }
+}
+setInterval(draw,16);    
+</script>
+</body>
+</html>
