@@ -1,23 +1,26 @@
 <html>
 <head>
 <title>game</title>
+<style>
+canvas.game {
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+    width: 800px;
+    height: 480px;
+    border: 1px solid gray;
+}
+</style>
 </head>
 
 <body bgcolor="black">
 <script>
 const WIDTH = 400;
 const HEIGHT = 240;
-const SCALE = 2;
 var canvas = document.createElement("canvas");
 canvas.width = WIDTH;
 canvas.height = HEIGHT;
-canvas.style.imageRendering = "crisp-edges";
-canvas.style.imageRendering = "pixelated";
-canvas.style.width = WIDTH * SCALE + "px";
-canvas.style.height = HEIGHT * SCALE + "px";
-canvas.style.borderWidth = "1px";
-canvas.style.borderStyle = "solid";
-canvas.style.borderColor = "gray";
+canvas.className = "game";
+
 document.body.appendChild(canvas);
 var ctx = canvas.getContext("2d");
 
@@ -27,12 +30,12 @@ buffer.data[0] = 255;
 buffer.data[1] = 255;
 buffer.data[2] = 255;
 buffer.data[3] = 255;
-var w = buffer32[0];
+var pixelOn = buffer32[0];
 buffer.data[0] = 0;
 buffer.data[1] = 0;
 buffer.data[2] = 0;
 buffer.data[3] = 255;
-var b = buffer32[0];
+var pixelOff = buffer32[0];
 
 function refresh() {
     ctx.putImageData(buffer,0,0);
@@ -40,85 +43,231 @@ function refresh() {
 }
 refresh();
 
+const sin = Math.sin;
+const cos = Math.cos;
+const abs = Math.abs;
+
 function put(point,val) {
+    point = [Math.round(point[0]), Math.round(point[1])];
+
     if(point[0]<0||point[0]>=WIDTH) {
         return;
     }
     if(point[1]<0||point[1]>=HEIGHT) {
         return;
     }
-    buffer32[point[1]*WIDTH+point[0]] = val ? w : b;
+    buffer32[point[1]*WIDTH+point[0]] = val ? pixelOn : pixelOff;
 }
-function clear() {
-    for( var i =0; i<WIDTH*HEIGHT; i++ ) {
-        buffer32[i] = b;
+function line(p1,p2,val) {
+    p1 = [Math.round(p1[0]), Math.round(p1[1])];
+    p2 = [Math.round(p2[0]), Math.round(p2[1])];
+    var stepX = 1;
+    var dx = p2[0] - p1[0];
+    if( dx < 0 ) {
+        stepX = -1;
+        dx = -dx;
+    }
+    var stepY = 1;
+    var dy = p2[1] - p1[1];
+    if( dy < 0 ) {
+        stepY = -1;
+        dy = -dy;
+    }
+    var x = p1[0];
+    var y = p1[1];
+    if( dx >= dy ) {
+        var d = 2 * dy - dx;
+        while(1) {
+            put([x,y],val);
+            if( d > 0 ) {
+                y = y + stepY;
+                d = d - 2 * dx;
+            }
+            d = d + 2 * dy;
+            if( x == p2[0] ) {
+                break;
+            }
+            x = x + stepX;
+        }
+    } else {
+        var d = 2 * dx - dy;
+        while(1) {
+            put([x,y],val);
+            if( d > 0 ) {
+                x = x + stepX;
+                d = d - 2 * dy;
+            }
+            d = d + 2 * dx;
+            if( y == p2[1] ) {
+                break;
+            }
+            y = y + stepY;
+        }
     }
 }
-var p = [WIDTH/2,0];
-var v = [0,0];
-var g = [0,0.01];
-var a = [0,0];
-var angle = 0;
-var angleDelta = 0;
-var booster = false;
+function clear() {
+    for( var i = 0; i<WIDTH*HEIGHT; i++ ) {
+        buffer32[i] = pixelOff;
+    }
+}
+
+function mul_v3_v3(a, b) {
+    return [a[0]*b[0], a[1]*b[1], a[2]*b[2]];
+}
+
+function mul_m3_v3(a, b) {
+    return [
+        a[0]*b[0]+a[3]*b[1]+a[6]*b[2],
+        a[1]*b[0]+a[4]*b[1]+a[7]*b[2],
+        a[2]*b[0]+a[5]*b[1]+a[8]*b[2]
+    ];
+}
+
+function mul_m3_m3(a,b) {
+    return [
+        a[0]*b[0]+a[3]*b[1]+a[6]*b[2],
+        a[1]*b[0]+a[4]*b[1]+a[7]*b[2],
+        a[2]*b[0]+a[5]*b[1]+a[8]*b[2],
+
+        a[0]*b[3]+a[3]*b[4]+a[6]*b[5],
+        a[1]*b[3]+a[4]*b[4]+a[7]*b[5],
+        a[2]*b[3]+a[5]*b[4]+a[8]*b[5],
+
+        a[0]*b[6]+a[3]*b[7]+a[6]*b[8],
+        a[1]*b[6]+a[4]*b[7]+a[7]*b[8],
+        a[2]*b[6]+a[5]*b[7]+a[8]*b[8],
+    ];
+}
+
+function add_v3_v3(a,b) {
+    return [a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+}
+
+const transformStack = [];
+var transformMatrix = [
+    1,0,0,
+    0,1,0,
+    0,0,1
+];
+
+function pushTransform(m) {
+    transformStack.push(transformMatrix);
+    transformMatrix = mul_m3_m3(transformMatrix, m);
+}
+
+function popTransform() {
+    transformMatrix = transformStack.pop();
+}
+
+function pushRotate(a) {
+    pushTransform([
+        cos(a), -sin(a), 0,
+        sin(a), cos(a), 0,
+        0, 0, 1
+    ]);
+}
+
+function pushTranslate(v) {
+    pushTransform([
+        1,0,0,
+        0,1,0,
+        v[0],v[1],1
+    ]);
+}
+function pushScale(sx,sy) {
+    pushTransform([
+        sx,0,0,
+        0,sy,0,
+        0,0,1
+    ]);
+}
+function transform(p) {
+    return mul_m3_v3(transformMatrix, p);
+}
+
+var ship = {
+    p: [0,0,1],
+    v: [0,0,0],
+    angle: 0,
+    angleDelta: 0,
+    booster: false,
+    update: function(g) {
+        if( this.booster ) {
+            const boosterVal = 0.03;
+            var a2 = [sin(this.angle)*boosterVal,cos(this.angle)*boosterVal,0];       
+            this.v = add_v3_v3(this.v,a2);
+        }
+
+        this.p = add_v3_v3(this.p,this.v);
+        this.v = add_v3_v3(this.v,g);
+        this.angle += this.angleDelta;
+    },
+    draw: function() {
+        pushTranslate(this.p);
+        pushRotate(this.angle);
+        put(transform([0,3,1]),1);
+        put(transform([-2,-3,1]),1);
+        put(transform([+2,-3,1]),1);
+        if( this.booster ) {
+            put(transform([-1,-5,1]),1);
+            put(transform([+1,-5,1]),1);
+        }
+        popTransform();
+        popTransform();
+    }
+};
+
+var g = [0,-0.01,0];
+
 window.onkeydown = function(evt) {
     switch( evt.code ) {
         case "ArrowUp":
-            a = [0,-0.03];
-            booster = true;
+            ship.booster = true;
             break;
         case "ArrowLeft":
-            angleDelta = 0.1;
+            ship.angleDelta = -0.1;
             break;
         case "ArrowRight":
-            angleDelta = -0.1;
+            ship.angleDelta = 0.1;
             break;
     }
 };
 window.onkeyup = function(evt) {
     switch( evt.code ) {
         case "ArrowUp":
-            a = [0,0];
-            booster = false;
+            ship.booster = false;
             break;
         case "ArrowLeft":
-            angleDelta = 0;
+            ship.angleDelta = 0;
             break;
         case "ArrowRight":
-            angleDelta = 0;
+            ship.angleDelta = 0;
             break;
     }
 };
-const sin = Math.sin;
-const cos = Math.cos;
-function rotate(angle,point) {
-    return [
-        point[0] * sin(angle) + point[1] * cos(angle),
-        point[0] * cos(angle) + point[1] * -sin(angle)
-    ];
-}
-function translate(vector,point) {
-    return [vector[0]+point[0],vector[1]+point[1]];
-}
-function round(point) {
-    return [Math.round(point[0]), Math.round(point[1])];
-}
+const world = [
+    [[0,0,1],[50,200,1]],
+    [[50,200,1],[100,230,1]],
+    [[100,230,1],[300,230,1]],
+    [[300,230,1],[350,200,1]],
+    [[350,200,1],[399,0,1]],
+];
+pushTranslate([WIDTH/2,HEIGHT/2]);
+pushScale(1,-1);
 function draw() {
-    var a2 = rotate(angle,a);
-    p = [p[0]+v[0],p[1]+v[1]];
-    v = [v[0]+g[0]+a2[0],v[1]+g[1]+a2[1]];
-    angle += angleDelta;
-    
+    ship.update(g);
+
     clear();
-    put(round(translate(p,rotate(angle,[0,-3]))),1);
-    put(round(translate(p,rotate(angle,[-2,+3]))),1);
-    put(round(translate(p,rotate(angle,[+2,+3]))),1);
-    if( booster ) {
-        put(round(translate(p,rotate(angle,[-1,+5]))),1);
-        put(round(translate(p,rotate(angle,[+1,+5]))),1);
-    }
+    var camera = ship.p;
+
+    //world.forEach( l => {
+    //    line(transform(l[0]),transform(l[1]),1);
+    //} );
+
+    ship.draw();
+
 }
-setInterval(draw,16);    
+setInterval(draw,16);
 </script>
 </body>
 </html>
