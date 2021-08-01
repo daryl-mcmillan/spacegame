@@ -300,20 +300,40 @@ var world = {
         popTransform();
     }
 };
+
+var camera = {
+    p: ship.p,
+    follow: ship,
+    angle: 1,
+    update: function() {
+        this.p = this.follow.p;
+        this.angle = this.angle + 0.001;
+    },
+    push: function() {
+      pushRotate(this.angle);
+      pushTranslate([-this.p[0], -this.p[1]]);
+    },
+    pop: function() {
+        popTransform();
+        popTransform();
+    }
+};
+
+// x right, y up, 0 0 in the middle
 pushTranslate([WIDTH/2,HEIGHT/2]);
 pushScale(1,-1);
 function draw() {
     ship.update(g);
     world.update();
+    camera.update();
 
     clear();
-    var camera = ship.p;
-    pushTranslate([-camera[0], -camera[1]]);
 
+    camera.push();
     ship.draw();
     world.draw();
+    camera.pop();
 
-    popTransform();
 }
 setInterval(draw,16);
 </script>
