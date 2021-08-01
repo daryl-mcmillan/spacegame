@@ -323,8 +323,7 @@ var world = {
 
 
 var camera = {
-    p: ship.p,
-    follow: ship,
+    p: [0,0,1],
     angle: 0,
     update: function() {
         this.angle = this.angle + 0.001;
