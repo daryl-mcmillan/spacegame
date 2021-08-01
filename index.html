@@ -245,27 +245,75 @@ window.onkeyup = function(evt) {
             break;
     }
 };
-const world = [
-    [[0,0,1],[50,200,1]],
-    [[50,200,1],[100,230,1]],
-    [[100,230,1],[300,230,1]],
-    [[300,230,1],[350,200,1]],
-    [[350,200,1],[399,0,1]],
-];
+const world_radius = 1000;
+const world_segments = 100;
+const world_levels = [];
+for( var i=0; i<world_segments; i++ ) {
+    world_levels.push( ( Math.random() * 0.1 + 0.95 ) * world_radius);
+}
+var world = {
+    radius: world_radius,
+    p: [10000,10000,1],
+    update : function() {
+        
+    },
+    draw: function() {
+        var dx = this.p[0] - ship.p[0];
+        var dy = this.p[1] - ship.p[1];
+        var distance = Math.abs(Math.sqrt( dx*dx + dy*dy ));
+        
+        if( distance > 0 ) {
+            g = [
+                dx / distance * 0.01,
+                dy / distance * 0.01,
+                0
+            ];
+        }
+        
+        var scale = 1;
+        if( distance > 5000 ) {
+            scale = 0.01;
+        } else if( distance > 2000 ) {
+            scale = 0.02;
+        } else if( distance > 1200 ) {
+            scale = 0.1;
+        } else {
+            scale = 1;
+        }
+        pushTranslate(ship.p);
+        pushScale(scale,scale);
+        pushTranslate([dx,dy,1]);
+        var segments = 100;
+        for( var i=0;i<world_segments; i++ ) {
+            var a1 = Math.PI * 2 * i / world_segments;
+            var e1 = world_levels[i];
+            var a2 = Math.PI * 2 * (i+1) / world_segments;
+            var e2 = world_levels[(i+1)%world_segments];
+            line(
+                transform([sin(a1)*e1, cos(a1)*e1,1]),
+                transform([sin(a2)*e2, cos(a2)*e2,1]),
+                1
+            );
+        }
+        popTransform();
+        popTransform();
+        popTransform();
+    }
+};
 pushTranslate([WIDTH/2,HEIGHT/2]);
 pushScale(1,-1);
 function draw() {
     ship.update(g);
+    world.update();
 
     clear();
     var camera = ship.p;
-
-    //world.forEach( l => {
-    //    line(transform(l[0]),transform(l[1]),1);
-    //} );
+    pushTranslate([-camera[0], -camera[1]]);
 
     ship.draw();
+    world.draw();
 
+    popTransform();
 }
 setInterval(draw,16);
 </script>
