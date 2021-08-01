@@ -353,7 +353,7 @@ function draw() {
 
     var shipToWorld = sub_v3_v3(world.p, ship.p);
     var distanceToWorld = len_v3(shipToWorld);
-    var lookAheadDistance = 100;
+    var lookAheadDistance = Math.min( 100, distanceToWorld - world.radius - 50 );
     if( distanceToWorld > 0 ) {
         var lookAheadFraction = lookAheadDistance / distanceToWorld;
         var lookAheadVector = mul_v3_v3( shipToWorld, [lookAheadFraction, lookAheadFraction, 0] );
