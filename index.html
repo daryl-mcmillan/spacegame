@@ -158,6 +158,15 @@ function add_v3_v3(a,b) {
     return [a[0]+b[0],a[1]+b[1],a[2]+b[2]];
 }
 
+function sub_v3_v3(a,b) {
+    return [a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+}
+
+function len_v3(v) {
+    multiplies.add(3);
+    return Math.sqrt( v[0]*v[0] + v[1]*v[1] + v[2]*v[2] );
+}
+
 const transformStack = [];
 var transformMatrix = [
     1,0,0,
@@ -285,7 +294,7 @@ var world = {
             ];
         }
         
-        var comfy = 100;
+        var comfy = 200;
         
         var scale = 1;
         if( distance > this.radius + comfy ) {
@@ -294,7 +303,6 @@ var world = {
         pushTranslate(ship.p);
         pushScale(scale,scale);
         pushTranslate([dx,dy,1]);
-        var segments = 100;
         for( var i=0;i<world_segments; i++ ) {
             var a1 = Math.PI * 2 * i / world_segments;
             var e1 = world_levels[i];
@@ -311,6 +319,8 @@ var world = {
         popTransform();
     }
 };
+
+
 
 var camera = {
     p: ship.p,
@@ -340,6 +350,16 @@ function draw() {
     ship.update(g);
     world.update();
     camera.update();
+
+    var shipToWorld = sub_v3_v3(world.p, ship.p);
+    var distanceToWorld = len_v3(shipToWorld);
+    var lookAheadDistance = 100;
+    if( distanceToWorld > 0 ) {
+        var lookAheadFraction = lookAheadDistance / distanceToWorld;
+        var lookAheadVector = mul_v3_v3( shipToWorld, [lookAheadFraction, lookAheadFraction, 0] );
+        var poi = add_v3_v3( ship.p, lookAheadVector );
+        camera.p = poi;
+    }
 
     clear();
 
