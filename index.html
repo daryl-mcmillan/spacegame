@@ -304,15 +304,18 @@ var camera = {
     p: [0,0,1],
     angle: 0,
     scale: 1,
+    shake: 0,
     update: function() {
         this.angle = this.angle + 0.001;
     },
     push: function() {
       pushRotate(this.angle);
+      pushTranslate([(Math.random()-0.5)*this.shake,(Math.random()-0.5)*this.shake,0])
       pushScale(this.scale,this.scale);
-      pushTranslate([-this.p[0], -this.p[1]]);
+      pushTranslate([-this.p[0], -this.p[1], 0]);
     },
     pop: function() {
+        popTransform();
         popTransform();
         popTransform();
         popTransform();
@@ -327,25 +330,15 @@ pushTranslate([WIDTH/2,HEIGHT/2]);
 pushScale(1,-1);
 function draw() {
 
-    var dx = world.p[0] - ship.p[0];
-    var dy = world.p[1] - ship.p[1];
-    var distance = Math.abs(Math.sqrt( dx*dx + dy*dy ));
-
-    var g = [0,0,0];
-    if( distance > 0 ) {
-        g = [
-            dx / distance * 0.01,
-            dy / distance * 0.01,
-            0
-        ];
-    }
-
-    ship.update(g);
-    world.update();
-    camera.update();
-
     var shipToWorld = sub_v3_v3(world.p, ship.p);
     var distanceToWorld = len_v3(shipToWorld);
+
+    var g = [0,0,0];
+    if( distanceToWorld > 0 ) {
+        var unitScale = 1 / distanceToWorld;
+        var unit = mul_v3_v3( shipToWorld, [unitScale, unitScale, 0] );
+        g = mul_v3_v3( unit, [0.01, 0.01, 0] );
+    }
     var lookAheadDistance = ( distanceToWorld - world.radius - 100 ) * 0.6;
     if( distanceToWorld > 0 ) {
         var lookAheadFraction = lookAheadDistance / distanceToWorld;
@@ -355,6 +348,19 @@ function draw() {
     }
     camera.scale = 180 / (distanceToWorld-world.radius+100);
     ship.zoom = (distanceToWorld-world.radius+100) / 180;
+    if( ship.booster ) {
+        if( camera.shake < 1 ) {
+            camera.shake = 1;
+        }
+        camera.shake = camera.shake + 0.01;
+    } else {
+        camera.shake = camera.shake * 0.95;
+    }
+
+    ship.update(g);
+    world.update();
+    camera.update();
+
 
     clear();
 
