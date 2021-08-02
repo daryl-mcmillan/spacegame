@@ -303,10 +303,11 @@ var world = {
 var camera = {
     p: [0,0,1],
     angle: 0,
+    angleDelta: 0.001,
     scale: 1,
     shake: 0,
     update: function() {
-        this.angle = this.angle + 0.001;
+        this.angle = this.angle + this.angleDelta;
     },
     push: function() {
       pushRotate(this.angle);
@@ -348,6 +349,12 @@ function draw() {
     }
     camera.scale = 180 / (distanceToWorld-world.radius+100);
     ship.zoom = (distanceToWorld-world.radius+100) / 180;
+    if( distanceToWorld < 2 * world.radius ) {
+        var targetAngle = Math.PI - Math.atan2(shipToWorld[0], shipToWorld[1]);
+        camera.angle = targetAngle;
+    } else {
+        camera.angleDelta = 0.001;
+    }
     if( ship.booster ) {
         if( camera.shake < 1 ) {
             camera.shake = 1;
