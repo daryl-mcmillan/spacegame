@@ -212,6 +212,7 @@ function transform(p) {
 var ship = {
     p: [0,0,1],
     v: [0,0,0],
+    zoom: 1,
     angle: 0,
     angleDelta: 0,
     booster: false,
@@ -229,6 +230,7 @@ var ship = {
     draw: function() {
         pushTranslate(this.p);
         pushRotate(this.angle);
+        pushScale(this.zoom, this.zoom);
         put(transform([0,3,1]),1);
         put(transform([-2,-3,1]),1);
         put(transform([+2,-3,1]),1);
@@ -238,10 +240,9 @@ var ship = {
         }
         popTransform();
         popTransform();
+        popTransform();
     }
 };
-
-var g = [0,-0.01,0];
 
 window.onkeydown = function(evt) {
     switch( evt.code ) {
@@ -282,27 +283,8 @@ var world = {
         
     },
     draw: function() {
-        var dx = this.p[0] - ship.p[0];
-        var dy = this.p[1] - ship.p[1];
-        var distance = Math.abs(Math.sqrt( dx*dx + dy*dy ));
-        
-        if( distance > 0 ) {
-            g = [
-                dx / distance * 0.01,
-                dy / distance * 0.01,
-                0
-            ];
-        }
-        
-        var comfy = 200;
-        
-        var scale = 1;
-        if( distance > this.radius + comfy ) {
-            scale = 1 / ( (distance - this.radius) / comfy );
-        }
-        pushTranslate(ship.p);
-        pushScale(scale,scale);
-        pushTranslate([dx,dy,1]);
+
+        pushTranslate(this.p);
         for( var i=0;i<world_segments; i++ ) {
             var a1 = Math.PI * 2 * i / world_segments;
             var e1 = world_levels[i];
@@ -315,24 +297,23 @@ var world = {
             );
         }
         popTransform();
-        popTransform();
-        popTransform();
     }
 };
-
-
 
 var camera = {
     p: [0,0,1],
     angle: 0,
+    scale: 1,
     update: function() {
         this.angle = this.angle + 0.001;
     },
     push: function() {
       pushRotate(this.angle);
+      pushScale(this.scale,this.scale);
       pushTranslate([-this.p[0], -this.p[1]]);
     },
     pop: function() {
+        popTransform();
         popTransform();
         popTransform();
     }
@@ -345,19 +326,35 @@ setInterval( function() { console.log(debugVal); }, 1000 );
 pushTranslate([WIDTH/2,HEIGHT/2]);
 pushScale(1,-1);
 function draw() {
+
+    var dx = world.p[0] - ship.p[0];
+    var dy = world.p[1] - ship.p[1];
+    var distance = Math.abs(Math.sqrt( dx*dx + dy*dy ));
+
+    var g = [0,0,0];
+    if( distance > 0 ) {
+        g = [
+            dx / distance * 0.01,
+            dy / distance * 0.01,
+            0
+        ];
+    }
+
     ship.update(g);
     world.update();
     camera.update();
 
     var shipToWorld = sub_v3_v3(world.p, ship.p);
     var distanceToWorld = len_v3(shipToWorld);
-    var lookAheadDistance = Math.min( 100, distanceToWorld - world.radius - 50 );
+    var lookAheadDistance = ( distanceToWorld - world.radius - 100 ) * 0.6;
     if( distanceToWorld > 0 ) {
         var lookAheadFraction = lookAheadDistance / distanceToWorld;
         var lookAheadVector = mul_v3_v3( shipToWorld, [lookAheadFraction, lookAheadFraction, 0] );
         var poi = add_v3_v3( ship.p, lookAheadVector );
         camera.p = poi;
     }
+    camera.scale = 180 / (distanceToWorld-world.radius+100);
+    ship.zoom = (distanceToWorld-world.radius+100) / 180;
 
     clear();
 
@@ -369,6 +366,7 @@ function draw() {
     debugVal = multiplies.get();
 }
 setInterval(draw,16);
+
 function setDistance(d) {
     var dx = world.p[0] - ship.p[0];
     var dy = world.p[1] - ship.p[1];
